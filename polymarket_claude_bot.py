@@ -50,7 +50,6 @@ def fetch_markets():
 
 
 def filter_markets(markets):
-    from datetime import datetime, timezone, timedelta
     good = []
     now = datetime.now(timezone.utc)
     for m in markets:
@@ -63,31 +62,31 @@ def filter_markets(markets):
             yes_price = float(yes.get("price", 0))
             volume    = float(m.get("volume", 0))
 
-            # Parse end date
             end_str = m.get("end_date_iso", "")
             if not end_str:
                 continue
             end_date = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
 
-            # Only markets ending within the next 7 days
-            days_left = (end_date - now).days
-            if days_left < 0 or days_left > 7:
+            # Only markets ending within 24 hours
+            hours_left = (end_date - now).total_seconds() / 3600
+            if hours_left < 0.5 or hours_left > 24:
                 continue
 
-            if volume > 1000 and 0.05 < yes_price < 0.95:
+            # Near-resolution sniping: price already 80-95¢
+            if volume > 1000 and 0.80 < yes_price < 0.95:
                 good.append({
-                    "id":       m.get("condition_id"),
-                    "question": m.get("question", ""),
-                    "yes":      yes_price,
-                    "no":       float(no.get("price", 0)),
-                    "volume":   volume,
-                    "end":      end_str,
-                    "days_left": days_left,
+                    "id":        m.get("condition_id"),
+                    "question":  m.get("question", ""),
+                    "yes":       yes_price,
+                    "no":        float(no.get("price", 0)),
+                    "volume":    volume,
+                    "end":       end_str,
+                    "hours_left": round(hours_left, 1),
                 })
         except Exception:
             continue
     good.sort(key=lambda x: x["volume"], reverse=True)
-    log.info(f"Filtered to {len(good[:5])} short-term candidates")
+    log.info(f"Filtered to {len(good[:5])} 24h near-resolution candidates")
     return good[:5]
 
 
@@ -99,7 +98,7 @@ Market: {market['question']}
 YES price: {market['yes']:.2f}  ({market['yes']*100:.0f}% implied probability)
 NO price:  {market['no']:.2f}
 Volume: ${market['volume']:,.0f}
-End date: {market['end']}
+End date: {market['end']} ({market.get('hours_left', '?')}h remaining)
 Today: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}
 
 Should I trade this? Reply ONLY with valid JSON, no extra text:
