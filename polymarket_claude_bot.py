@@ -51,7 +51,6 @@ def fetch_markets():
 
 def filter_markets(markets):
     good = []
-    now = datetime.now(timezone.utc)
     for m in markets:
         try:
             tokens = m.get("tokens", [])
@@ -62,33 +61,21 @@ def filter_markets(markets):
             yes_price = float(yes.get("price", 0))
             volume    = float(m.get("volume", 0))
 
-            end_str = m.get("end_date_iso", "")
-            if not end_str:
-                continue
-            end_date = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
-
-            # Only markets ending within 72 hours
-            hours_left = (end_date - now).total_seconds() / 3600
-            if hours_left < 0 or hours_left > 72:
-                continue
-
-            # Near-resolution sniping: price already 80-95¢
             if volume > 500 and 0.05 < yes_price < 0.95:
                 good.append({
-                    "id":        m.get("condition_id"),
-                    "question":  m.get("question", ""),
-                    "yes":       yes_price,
-                    "no":        float(no.get("price", 0)),
-                    "volume":    volume,
-                    "end":       end_str,
-                    "hours_left": round(hours_left, 1),
+                    "id":       m.get("condition_id"),
+                    "question": m.get("question", ""),
+                    "yes":      yes_price,
+                    "no":       float(no.get("price", 0)),
+                    "volume":   volume,
+                    "end":      m.get("end_date_iso", "unknown"),
+                    "hours_left": 48,
                 })
         except Exception:
             continue
     good.sort(key=lambda x: x["volume"], reverse=True)
-    log.info(f"Filtered to {len(good[:5])} 24h near-resolution candidates")
+    log.info(f"Filtered to {len(good[:5])} candidates")
     return good[:5]
-
 
 def ask_claude(market):
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
