@@ -50,7 +50,9 @@ def fetch_markets():
 
 
 def filter_markets(markets):
+    from datetime import datetime, timezone, timedelta
     good = []
+    now = datetime.now(timezone.utc)
     for m in markets:
         try:
             tokens = m.get("tokens", [])
@@ -60,19 +62,32 @@ def filter_markets(markets):
                 continue
             yes_price = float(yes.get("price", 0))
             volume    = float(m.get("volume", 0))
-            if volume > 1000 and 0.10 < yes_price < 0.90:
+
+            # Parse end date
+            end_str = m.get("end_date_iso", "")
+            if not end_str:
+                continue
+            end_date = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+
+            # Only markets ending within the next 7 days
+            days_left = (end_date - now).days
+            if days_left < 0 or days_left > 7:
+                continue
+
+            if volume > 1000 and 0.05 < yes_price < 0.95:
                 good.append({
                     "id":       m.get("condition_id"),
                     "question": m.get("question", ""),
                     "yes":      yes_price,
                     "no":       float(no.get("price", 0)),
                     "volume":   volume,
-                    "end":      m.get("end_date_iso", ""),
+                    "end":      end_str,
+                    "days_left": days_left,
                 })
         except Exception:
             continue
     good.sort(key=lambda x: x["volume"], reverse=True)
-    log.info(f"Filtered to {len(good[:5])} candidates")
+    log.info(f"Filtered to {len(good[:5])} short-term candidates")
     return good[:5]
 
 
