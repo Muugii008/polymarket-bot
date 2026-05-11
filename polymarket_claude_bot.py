@@ -60,7 +60,7 @@ def filter_markets(markets):
                 continue
             yes_price = float(yes.get("price", 0))
             volume    = float(m.get("volume", 0))
-            if volume > 10000 and 0.10 < yes_price < 0.90:
+            if volume > 1000 and 0.10 < yes_price < 0.90:
                 good.append({
                     "id":       m.get("condition_id"),
                     "question": m.get("question", ""),
