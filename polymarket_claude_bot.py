@@ -125,14 +125,22 @@ Should I trade this? Reply ONLY with valid JSON, no extra text:
 
 
 def place_order(market, verdict):
+    from poly_trader import PaperTrader
     side  = verdict["recommended_side"]
     price = market["yes"] if side == "YES" else market["no"]
     size  = round(MAX_BET_USDC / price, 2)
-    log.info(
-        f"[PAPER ORDER] {side} {size} shares @ ${price:.3f} | "
-        f"Confidence: {verdict['confidence']:.0%} | "
-        f"{market['question'][:60]}"
-    )
+
+    try:
+        trader = PaperTrader()
+        if side == "YES":
+            result = trader.buy(market["id"], "yes", MAX_BET_USDC)
+        else:
+            result = trader.buy(market["id"], "no", MAX_BET_USDC)
+        log.info(f"[PAPER TRADE] {side} ${MAX_BET_USDC} | {market['question'][:60]}")
+        log.info(f"  → Result: {result}")
+    except Exception as e:
+        log.error(f"Paper trade failed: {e}")
+        log.info(f"[LOGGED] {side} {size} shares @ ${price:.3f} | {market['question'][:60]}")
 
 
 def run_cycle():
